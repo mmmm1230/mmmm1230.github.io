@@ -1,0 +1,4409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>研究生课程表</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1em;
+            font-weight: 400;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .week-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .week-selector label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        .week-selector select {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            background: white;
+            color: #2c3e50;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .week-selector select:hover {
+            border-color: #2980b9;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .week-selector select:focus {
+            outline: none;
+            border-color: #2980b9;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .legend-color.public {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+        
+        .legend-color.mti {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+        
+        .schedule-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            table-layout: fixed;
+        }
+        
+        .schedule-table th {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 15px 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 15px;
+            position: relative;
+        }
+        
+        .schedule-table th::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3498db, #e67e22, #3498db);
+        }
+        
+        .schedule-table th:first-child {
+            width: 100px;
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+        }
+        
+        .schedule-table th:not(:first-child) {
+            width: calc((100% - 100px) / 7);
+        }
+        
+        .schedule-table td {
+            border: 1px solid #ecf0f1;
+            padding: 10px;
+            vertical-align: top;
+            height: 140px;
+            overflow: hidden;
+            word-wrap: break-word;
+            transition: all 0.3s ease;
+        }
+        
+        .schedule-table td:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .time-slot {
+            background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+            font-weight: 600;
+            text-align: center;
+            width: 100px;
+            color: #2c3e50;
+            font-size: 13px;
+        }
+        
+        .course-item {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            line-height: 1.4;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .course-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .course-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .course-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+            font-size: 12px;
+        }
+        
+        .course-info {
+            font-size: 10px;
+            color: #7f8c8d;
+            opacity: 0.9;
+        }
+        
+        .course-info div {
+            margin-bottom: 1px;
+        }
+        
+        /* 公共课样式 */
+        .course-item:not(.mti-course) {
+            background: linear-gradient(135deg, #e8f4fd, #d1e7dd);
+            border-left: 4px solid #3498db;
+            color: #2c3e50;
+        }
+        
+        .course-item:not(.mti-course) .course-name {
+            color: #2980b9;
+        }
+        
+        /* MTI专业课样式 */
+        .mti-course {
+            background: linear-gradient(135deg, #fef9e7, #f8e6cc);
+            border-left: 4px solid #e67e22;
+            color: #2c3e50;
+        }
+        
+        .mti-course .course-name {
+            color: #d35400;
+        }
+        
+        /* Training课程样式 */
+        .training-course {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border-left: 4px solid #4caf50;
+            color: #2c3e50;
+        }
+        
+        .training-course .course-name {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        
+        /* Rest课程样式 */
+        .rest-course {
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+            border-left: 4px solid #9c27b0;
+            color: #2c3e50;
+        }
+        
+        .rest-course .course-name {
+            color: #7b1fa2;
+            font-weight: bold;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .container {
+                padding: 0 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .legend {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .schedule-table {
+                font-size: 12px;
+            }
+            
+            .schedule-table td {
+                height: 100px;
+                padding: 5px;
+            }
+            
+            .course-item {
+                font-size: 10px;
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>25-26学年第一学期课程表(笑笑)</h1>
+            <div class="subtitle">研究生公共课 + MTI专业课程</div>
+        </div>
+        
+        <div class="controls">
+            <div class="week-selector">
+                <label for="weekSelect">选择周次：</label>
+                <select id="weekSelect" onchange="showWeek()">
+                    <option value="">请选择周次</option>
+                    <option value="3">第3周</option>
+                    <option value="4">第4周</option>
+                    <option value="5">第5周</option>
+                    <option value="6">第6周</option>
+                    <option value="7">第7周</option>
+                    <option value="8">第8周</option>
+                    <option value="9">第9周</option>
+                    <option value="10">第10周</option>
+                    <option value="11">第11周</option>
+                    <option value="12">第12周</option>
+                    <option value="13">第13周</option>
+                    <option value="14">第14周</option>
+                    <option value="15">第15周</option>
+                    <option value="16">第16周</option>
+                    <option value="17">第17周</option>
+                    <option value="18">第18周</option>
+                </select>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color public"></div>
+                    <span>研究生公共课</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color mti"></div>
+                    <span>MTI专业课</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="schedule-container">
+        <table class="schedule-table">
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>周一</th>
+                    <th>周二</th>
+                    <th>周三</th>
+                    <th>周四</th>
+                    <th>周五</th>
+                    <th>周六</th>
+                    <th>周日</th>
+                </tr>
+            </thead>
+            <tbody id="scheduleBody">                <tr>
+                    <td class="time-slot">1-2节</td>
+                    <td id="cell_1-2_0"></td>
+                    <td id="cell_1-2_1"></td>
+                    <td id="cell_1-2_2"></td>
+                    <td id="cell_1-2_3"></td>
+                    <td id="cell_1-2_4"></td>
+                    <td id="cell_1-2_5"></td>
+                    <td id="cell_1-2_6"></td>
+                </tr>
+                <tr>
+                    <td class="time-slot">3-4节</td>
+                    <td id="cell_3-4_0"></td>
+                    <td id="cell_3-4_1"></td>
+                    <td id="cell_3-4_2"></td>
+                    <td id="cell_3-4_3"></td>
+                    <td id="cell_3-4_4"></td>
+                    <td id="cell_3-4_5"></td>
+                    <td id="cell_3-4_6"></td>
+                </tr>
+                <tr>
+                    <td class="time-slot">5-6节</td>
+                    <td id="cell_5-6_0"></td>
+                    <td id="cell_5-6_1"></td>
+                    <td id="cell_5-6_2"></td>
+                    <td id="cell_5-6_3"></td>
+                    <td id="cell_5-6_4"></td>
+                    <td id="cell_5-6_5"></td>
+                    <td id="cell_5-6_6"></td>
+                </tr>
+                <tr>
+                    <td class="time-slot">7-8节</td>
+                    <td id="cell_7-8_0"></td>
+                    <td id="cell_7-8_1"></td>
+                    <td id="cell_7-8_2"></td>
+                    <td id="cell_7-8_3"></td>
+                    <td id="cell_7-8_4"></td>
+                    <td id="cell_7-8_5"></td>
+                    <td id="cell_7-8_6"></td>
+                </tr>
+                <tr>
+                    <td class="time-slot">Training</td>
+                    <td id="cell_Training_0"></td>
+                    <td id="cell_Training_1"></td>
+                    <td id="cell_Training_2"></td>
+                    <td id="cell_Training_3"></td>
+                    <td id="cell_Training_4"></td>
+                    <td id="cell_Training_5"></td>
+                    <td id="cell_Training_6"></td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+    
+
+    <script>
+        // 课程数据
+        const scheduleData = {
+            3: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "2007001",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            4: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "2007001",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            5: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            6: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            7: {
+                "星期一": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            8: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            9: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            10: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语202",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            11: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语202",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            12: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语202",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                        {
+                            name: "马克思主义与社会科学方法论",
+                            code: "2007026、6007005",
+                            location: "三教201",
+                            teacher: "付晓倩（讲师）",
+                            target: "25级09、24-26、31（文科）",
+                            note: "nan",
+                            type: ""
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            13: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语202",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            14: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语202",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            15: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            16: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            17: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                },
+            18: {
+                "星期一": {
+                    "1-2": [
+                        {
+                            name: "中国语言文化",
+                            code: "6009054",
+                            location: "三教406",
+                            teacher: "陈由歆（副教授）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                        {
+                            name: "中国特色社会主义理论与实践研究",
+                            code: "6007004",
+                            location: "三教201",
+                            teacher: "张宇彤（副教授）",
+                            target: "25级30-34",
+                            note: "nan",
+                            type: ""
+                        },
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期二": {
+                    "1-2": [
+                        {
+                            name: "基础笔译",
+                            code: "6009011",
+                            location: "三教406",
+                            teacher: "冯旭（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "计算机辅助翻译",
+                            code: "6009020",
+                            location: "外语302",
+                            teacher: "田昆（讲师）",
+                            target: "2025级英语笔译、2025级俄语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                        {
+                            name: "应用翻译",
+                            code: "6009057",
+                            location: "三教308",
+                            teacher: "张影（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期三": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期四": {
+                    "1-2": [
+                        {
+                            name: "时政笔译",
+                            code: "6009090",
+                            location: "三教406",
+                            teacher: "安鑫（副教授）、刘博",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "3-4": [
+                        {
+                            name: "翻译与跨文化交际",
+                            code: "6009092",
+                            location: "三教406",
+                            teacher: "常敏（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期五": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                        {
+                            name: "基础科技翻译",
+                            code: "6009063",
+                            location: "三教406",
+                            teacher: "王云侠（讲师）",
+                            target: "2025级英语笔译",
+                            note: "nan",
+                            type: "mti-course"
+                        },
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期六": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Go！！！",
+                            code: "TRAIN001",
+                            location: "健身房",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "加油",
+                            type: "training-course"
+                        }
+                    ]
+                },
+                "星期日": {
+                    "1-2": [
+                    ],
+                    "3-4": [
+                    ],
+                    "5-6": [
+                    ],
+                    "7-8": [
+                    ]
+                ,
+                    "Training": [
+                        {
+                            name: "Rest💤",
+                            code: "REST001",
+                            location: "Everywhere",
+                            teacher: "笑笑",
+                            target: "笑笑",
+                            note: "好好休息",
+                            type: "rest-course"
+                        }
+                    ]
+                }
+                }
+                };
+        
+        function showWeek() {
+            const weekSelect = document.getElementById('weekSelect');
+            const selectedWeek = weekSelect.value;
+            
+            // 清空所有单元格
+            const cells = document.querySelectorAll('td[id^="cell_"]');
+            cells.forEach(cell => {
+                cell.innerHTML = '';
+            });
+            
+            if (!selectedWeek) {
+                // 显示所有课程的汇总视图
+                showAllCoursesSummary();
+                return;
+            }
+            
+            if (!scheduleData[selectedWeek]) {
+                return;
+            }
+
+            const weekData = scheduleData[selectedWeek];
+            const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+            const timeSlots = ['1-2', '3-4', '5-6', '7-8', 'Training'];
+
+            // 填充课程数据
+            timeSlots.forEach(timeSlot => {
+                weekdays.forEach((weekday, dayIndex) => {
+                    const cellId = `cell_${timeSlot}_${dayIndex}`;
+                    const cell = document.getElementById(cellId);
+
+                    if (weekData[weekday] && weekData[weekday][timeSlot]) {
+                        const courses = weekData[weekday][timeSlot];
+
+                        courses.forEach(course => {
+                            const courseDiv = document.createElement('div');
+                            courseDiv.className = `course-item ${course.type}`;
+
+                            courseDiv.innerHTML = `
+                                <div class="course-name">${course.name}</div>
+                                <div class="course-info">
+                                    <div>${course.location}</div>
+                                    <div>${course.teacher}</div>
+                                </div>
+                            `;
+
+                            // 添加提示信息
+                            courseDiv.title = `课程：${course.name}\n代码：${course.code}\n地点：${course.location}\n教师：${course.teacher}\n对象：${course.target}${course.note ? '\n备注：' + course.note : ''}`;
+
+                            cell.appendChild(courseDiv);
+                        });
+                    }
+                });
+            });
+        }
+        
+        function showAllCoursesSummary() {
+            const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+            const timeSlots = ['1-2', '3-4', '5-6', '7-8', 'Training'];
+            
+            // 收集所有课程数据
+            const courseSummary = {};
+            
+            // 遍历所有周次和时间段
+            Object.keys(scheduleData).forEach(week => {
+                const weekData = scheduleData[week];
+                timeSlots.forEach(timeSlot => {
+                    weekdays.forEach((weekday, dayIndex) => {
+                        if (weekData[weekday] && weekData[weekday][timeSlot]) {
+                            const courses = weekData[weekday][timeSlot];
+                            courses.forEach(course => {
+                                const key = `${timeSlot}_${dayIndex}_${course.name}_${course.code}`;
+                                if (!courseSummary[key]) {
+                                    courseSummary[key] = {
+                                        course: course,
+                                        timeSlot: timeSlot,
+                                        dayIndex: dayIndex,
+                                        weeks: []
+                                    };
+                                }
+                                courseSummary[key].weeks.push(parseInt(week));
+                            });
+                        }
+                    });
+                });
+            });
+            
+            // 显示汇总的课程数据
+            Object.values(courseSummary).forEach(item => {
+                const cellId = `cell_${item.timeSlot}_${item.dayIndex}`;
+                const cell = document.getElementById(cellId);
+                
+                const courseDiv = document.createElement('div');
+                courseDiv.className = `course-item ${item.course.type}`;
+                
+                // 生成周次范围显示
+                const weeks = item.weeks.sort((a, b) => a - b);
+                let weekRange = '';
+                if (weeks.length === 1) {
+                    weekRange = `第${weeks[0]}周`;
+                } else if (weeks.length === 2) {
+                    weekRange = `第${weeks[0]},${weeks[1]}周`;
+                } else {
+                    // 查找连续的周次范围
+                    const ranges = [];
+                    let start = weeks[0];
+                    let end = weeks[0];
+                    
+                    for (let i = 1; i < weeks.length; i++) {
+                        if (weeks[i] === end + 1) {
+                            end = weeks[i];
+                        } else {
+                            if (start === end) {
+                                ranges.push(`第${start}周`);
+                            } else {
+                                ranges.push(`${start}-${end}周`);
+                            }
+                            start = weeks[i];
+                            end = weeks[i];
+                        }
+                    }
+                    
+                    if (start === end) {
+                        ranges.push(`第${start}周`);
+                    } else {
+                        ranges.push(`${start}-${end}周`);
+                    }
+                    
+                    weekRange = ranges.join(', ');
+                }
+                
+                courseDiv.innerHTML = `
+                    <div class="course-name">${item.course.name}</div>
+                    <div class="course-info">
+                        <div>${item.course.location}</div>
+                        <div>${item.course.teacher}</div>
+                        <div style="color: #666; font-size: 10px; margin-top: 2px;">${weekRange}</div>
+                    </div>
+                `;
+                
+                // 添加提示信息
+                courseDiv.title = `课程：${item.course.name}\n代码：${item.course.code}\n地点：${item.course.location}\n教师：${item.course.teacher}\n对象：${item.course.target}\n周次：${weekRange}${item.course.note ? '\n备注：' + item.course.note : ''}`;
+                
+                cell.appendChild(courseDiv);
+            });
+        }
+
+        // 页面加载完成后默认显示所有课程汇总
+        window.onload = function() {
+            const weekSelect = document.getElementById('weekSelect');
+            weekSelect.value = '';  // 默认选择“请选择周次”
+            showWeek();  // 显示所有课程汇总
+        };
+    </script>
+</body>
+</html>
