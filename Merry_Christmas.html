@@ -124,7 +124,7 @@
 const CONFIG = {
     mainParticleCount: 600,
     fillerParticleCount: 1500,
-    snowCount: 5000, // 修改: 增加到3500片雪花，打造暴雪效果
+    snowCount: 30000, 
     treeHeight: 35,
     treeBaseRadius: 14,
     trunkHeight: 5,
@@ -186,13 +186,11 @@ function initThree() {
     mainLight.castShadow = true;
     scene.add(mainLight);
 
-    // 左侧冷色边缘光
-    const leftRimLight = new THREE.PointLight(0x4488ff, 100.0, 200);
+    const leftRimLight = new THREE.PointLight(0x4488ff, 300.0, 400); 
     leftRimLight.position.set(-60, 30, -20);
     scene.add(leftRimLight);
 
-    // 右侧暖色边缘光
-    const rightRimLight = new THREE.PointLight(0xffaa44, 80.0, 200);
+    const rightRimLight = new THREE.PointLight(0xffaa44, 250.0, 400);
     rightRimLight.position.set(60, 20, 20);
     scene.add(rightRimLight);
 
@@ -277,7 +275,7 @@ function createStarShape(outerRadius, innerRadius, points) {
 function setupTreeTopLight() {
     const topY = CONFIG.treeHeight / 2 + 2 + CONFIG.verticalOffset;
     
-    treeLight = new THREE.PointLight(0xffdd88, 50, 150);
+    treeLight = new THREE.PointLight(0xffdd88, 200, 200);
     treeLight.position.set(0, topY, 0);
     scene.add(treeLight);
     
@@ -289,7 +287,7 @@ function setupTreeTopLight() {
     const starMat = new THREE.MeshStandardMaterial({
         color: 0xffd700, 
         emissive: 0xffaa00, 
-        emissiveIntensity: 2.0, 
+        emissiveIntensity: 5.0, 
         roughness: 0.1,
         metalness: 1.0,  
         side: THREE.DoubleSide
@@ -422,7 +420,6 @@ function createSnowSystem() {
     const velocities = []; 
     
     for (let i = 0; i < CONFIG.snowCount; i++) {
-        // 修改: 增加深度范围，避免雪花太拥挤
         positions.push(
             (Math.random() - 0.5) * 200, 
             Math.random() * 100, 
@@ -609,8 +606,8 @@ function animate() {
     time += 0.01;
 
     if (treeLight && starMesh) {
-        treeLight.intensity = 10 + Math.sin(time * 3) * 5;
-        starMesh.rotation.y += 0.03; 
+        treeLight.intensity = 180 + Math.sin(time * 3) * 40;
+        treeLight.rotation.y += 0.03; 
     }
     
     if (textMesh) {
@@ -618,7 +615,7 @@ function animate() {
         textMesh.position.y = (CONFIG.treeHeight / 2 + CONFIG.verticalOffset + 12) + Math.sin(time) * 0.5;
     }
 
-    // --- 雪花动画 ---
+    // --- 雪花动画 (修复版) ---
     if (snowSystem) {
         const positions = snowSystem.geometry.attributes.position.array;
         const velocities = snowSystem.geometry.attributes.velocity.array;
@@ -628,8 +625,10 @@ function animate() {
             let py = positions[idx + 1];
             const speed = velocities[i];
             
+            // 正常下落
             py -= speed * 0.4; 
 
+            // 飘动效果
             positions[idx] += Math.sin(time + py * 0.1) * 0.05;
 
             // 雪花手势交互
@@ -641,13 +640,17 @@ function animate() {
                 positions[idx + 2] += positions[idx + 2] * 0.005;
             }
 
+            // [核心修复] 重置逻辑
             if (py < -20) {
-                py = 80;
+                // 当雪花落到屏幕下方时，重置到顶部
+                // 增加随机偏移，避免雪花成片出现
+                py = 80 + Math.random() * 20; 
                 positions[idx] = (Math.random() - 0.5) * 200;
-                positions[idx + 2] = (Math.random() - 0.5) * 150; // 重置时也应用新的深度范围
-            } else {
-                positions[idx+1] = py;
-            }
+                positions[idx + 2] = (Math.random() - 0.5) * 150; 
+            } 
+            
+            // [核心修复] 必须确保每一帧都更新 Y 坐标
+            positions[idx+1] = py;
         }
         snowSystem.geometry.attributes.position.needsUpdate = true;
     }
