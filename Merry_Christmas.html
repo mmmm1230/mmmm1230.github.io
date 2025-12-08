@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>华丽版手势控制圣诞树 - 圣诞快乐版</title>
+    <title>手势控制圣诞树</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #020205; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -96,7 +96,7 @@
     <div id="ui-layer">
         <div class="controls">
             <div class="controls-header">
-                <h1>🎄 圣诞快乐 - 华丽版</h1>
+                <h1>🎄 圣诞快乐  呆😳</h1>
                 <button id="toggle-ui-btn">🔽</button>
             </div>
             <div id="controls-body">
@@ -124,11 +124,11 @@
 const CONFIG = {
     mainParticleCount: 600,
     fillerParticleCount: 1500,
+    snowCount: 5000, // 修改: 增加到3500片雪花，打造暴雪效果
     treeHeight: 35,
     treeBaseRadius: 14,
     trunkHeight: 5,
     trunkRadius: 2.5,
-    // 修改 1: 增大整体向上偏移量 (原12 -> 20)，让树更高
     verticalOffset: 20, 
     colors: [0xd4af37, 0xff0000, 0x00ff00, 0xffffff, 0xffd700, 0xc0c0c0],
     emojis: ['🎁', '🎅', '🔔', '🎄', '🧦'], 
@@ -137,6 +137,7 @@ const CONFIG = {
 
 let scene, camera, renderer, allParticles = [], photos = [];
 let treeLight, ambientLight, starMesh, textMesh;
+let snowSystem; 
 let handState = 'OPEN';
 let isPinching = false;
 let pinchCooldown = false;
@@ -172,16 +173,28 @@ function initThree() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.physicallyCorrectLights = true;
+    renderer.outputEncoding = THREE.sRGBEncoding;
     container.appendChild(renderer.domElement);
 
-    // 灯光系统
-    ambientLight = new THREE.AmbientLight(0x333333, 1.5);
+    // --- 灯光系统 ---
+    ambientLight = new THREE.AmbientLight(0x333333, 1.0);
     scene.add(ambientLight);
 
-    const mainLight = new THREE.DirectionalLight(0xffd700, 1.2);
+    const mainLight = new THREE.DirectionalLight(0xffd700, 3.0);
     mainLight.position.set(20, 40, 20);
     mainLight.castShadow = true;
     scene.add(mainLight);
+
+    // 左侧冷色边缘光
+    const leftRimLight = new THREE.PointLight(0x4488ff, 100.0, 200);
+    leftRimLight.position.set(-60, 30, -20);
+    scene.add(leftRimLight);
+
+    // 右侧暖色边缘光
+    const rightRimLight = new THREE.PointLight(0xffaa44, 80.0, 200);
+    rightRimLight.position.set(60, 20, 20);
+    scene.add(rightRimLight);
 
     // 树顶星光
     setupTreeTopLight();
@@ -191,6 +204,9 @@ function initThree() {
 
     // 创建粒子系统
     createRichParticleSystem();
+
+    // 创建雪花系统
+    createSnowSystem();
     
     initUI();
 }
@@ -201,26 +217,20 @@ function updateCameraPosition() {
     if (aspect < 1) targetZ = 100; 
     else if (aspect < 1.5) targetZ = 85;
     
-    // 相机位置也随之上移，但保持仰视角度
     const cameraY = 15 + CONFIG.verticalOffset * 0.4; 
     camera.position.set(0, cameraY, targetZ);
-    // 看向树的中心偏上
     camera.lookAt(0, 15 + CONFIG.verticalOffset, 0); 
 }
 
-
-// --- 修改 1 & 2: 顶部五角星修复与文字添加 ---
-
-// 1. 加载文字
+// --- 文字加载 ---
 function loadChristmasText() {
     const loader = new THREE.FontLoader();
-    // 使用 Three.js 标准字体
     loader.load('https://unpkg.com/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json', function (font) {
         
         const textGeo = new THREE.TextGeometry('Merry Christmas', {
             font: font,
-            size: 4.5, // 字体大小
-            height: 0.5, // 厚度
+            size: 4.5,
+            height: 0.5,
             curveSegments: 12,
             bevelEnabled: true,
             bevelThickness: 0.1,
@@ -230,20 +240,19 @@ function loadChristmasText() {
 
         textGeo.computeBoundingBox();
         const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
-        textGeo.translate(centerOffset, 0, 0); // 居中
+        textGeo.translate(centerOffset, 0, 0);
 
         const textMat = new THREE.MeshStandardMaterial({ 
-            color: 0xff0000, // 红色文字
-            roughness: 0.4,
-            metalness: 0.6,
-            emissive: 0xff0000, // 自发光
-            emissiveIntensity: 0.8
+            color: 0xff0000, 
+            roughness: 0.3,
+            metalness: 0.7,
+            emissive: 0xff0000, 
+            emissiveIntensity: 0.4
         });
 
         textMesh = new THREE.Mesh(textGeo, textMat);
         
-        // 放置在树顶上方
-        const topY = CONFIG.treeHeight / 2 + CONFIG.verticalOffset + 12; // 比树顶再高一些
+        const topY = CONFIG.treeHeight / 2 + CONFIG.verticalOffset + 12;
         textMesh.position.set(0, topY, 0);
         
         scene.add(textMesh);
@@ -252,16 +261,13 @@ function loadChristmasText() {
     });
 }
 
-// 辅助：创建五角星 Shape
 function createStarShape(outerRadius, innerRadius, points) {
     const shape = new THREE.Shape();
     const step = Math.PI / points;
-    // 从Y轴正方向开始画
     shape.moveTo(0, outerRadius);
     for (let i = 0; i < 2 * points; i++) {
         const radius = i % 2 === 0 ? outerRadius : innerRadius;
         const a = i * step;
-        // 注意：这里是在XY平面画图
         shape.lineTo(Math.sin(a) * radius, Math.cos(a) * radius);
     }
     shape.closePath();
@@ -270,11 +276,11 @@ function createStarShape(outerRadius, innerRadius, points) {
 
 function setupTreeTopLight() {
     const topY = CONFIG.treeHeight / 2 + 2 + CONFIG.verticalOffset;
-    treeLight = new THREE.PointLight(0xffdd88, 3, 70);
+    
+    treeLight = new THREE.PointLight(0xffdd88, 50, 150);
     treeLight.position.set(0, topY, 0);
     scene.add(treeLight);
     
-    // 1. 创建 3D 五角星 Mesh
     const starShape = createStarShape(2.8, 1.4, 5);
     const starGeo = new THREE.ExtrudeGeometry(starShape, {
         depth: 0.6, bevelEnabled: true, bevelThickness: 0.3, bevelSize: 0.3, bevelSegments: 3
@@ -282,33 +288,27 @@ function setupTreeTopLight() {
     
     const starMat = new THREE.MeshStandardMaterial({
         color: 0xffd700, 
-        emissive: 0xffaa00, emissiveIntensity: 0.6, 
-        roughness: 0.05, 
+        emissive: 0xffaa00, 
+        emissiveIntensity: 2.0, 
+        roughness: 0.1,
         metalness: 1.0,  
         side: THREE.DoubleSide
     });
     starMesh = new THREE.Mesh(starGeo, starMat);
     
-    // 修改 2: 五角星旋转方向修改
-    // 之前代码有 starMesh.rotation.x = Math.PI / 2; 这会让星星平躺。
-    // 现在删除这行，星星默认是直立的（面板朝向Z轴）。
-    // 只需要在 animate 中旋转 Y 轴，就会像陀螺一样绕着树轴旋转。
-    
-    starMesh.position.z = -0.3; // 居中微调
+    starMesh.position.z = -0.3; 
     treeLight.add(starMesh);
 
-    // 2. 树顶光晕 Sprite
     const spriteMat = new THREE.SpriteMaterial({ 
         map: createGlowTexture(0xffdd88), 
-        color: 0xffdd88, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.8
+        color: 0xffdd88, transparent: true, blending: THREE.AdditiveBlending, opacity: 1.0
     });
     const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(12, 12, 1.0);
+    sprite.scale.set(20, 20, 1.0);
     treeLight.add(sprite);
 }
 
 
-// --- 辅助函数 ---
 function createGlowTexture(colorHex) {
     const canvas = document.createElement('canvas');
     canvas.width = 64; canvas.height = 64;
@@ -356,7 +356,6 @@ function getTreePosition(index, totalCount) {
         z = r * Math.sin(theta);
         y = h + baseCenterY;
     }
-    // 应用向上偏移
     y += CONFIG.verticalOffset;
     return new THREE.Vector3(x, y, z);
 }
@@ -379,12 +378,21 @@ function createRichParticleSystem() {
         } else if (rand < 0.25) { // 几何体
             const geo = Math.random() > 0.5 ? mainGeoBox : mainGeoTri;
             const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.8 });
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: color, 
+                roughness: 0.2, 
+                metalness: 0.9 
+            });
             mesh = new THREE.Mesh(geo, mat);
         } else { // 圆球
             const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
             const mat = new THREE.MeshPhysicalMaterial({ 
-                color: color, roughness: 0.1, metalness: 0.6, reflectivity: 0.9, clearcoat: 1.0
+                color: color, 
+                roughness: 0.1, 
+                metalness: 0.7, 
+                reflectivity: 1.0, 
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1
             });
             mesh = new THREE.Mesh(mainGeoSphere, mat);
             const scale = 0.7 + Math.random() * 0.7;
@@ -393,7 +401,7 @@ function createRichParticleSystem() {
         addParticleToScene(mesh, i, CONFIG.mainParticleCount);
     }
 
-    // 填充粒子
+    // 填充粒子 (小光点)
     const fillerGeo = new THREE.SphereBufferGeometry(0.15, 8, 8); 
     const fillerMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
 
@@ -405,6 +413,39 @@ function createRichParticleSystem() {
         mesh.userData.flashSpeed = 1 + Math.random() * 5;
         addParticleToScene(mesh, i, CONFIG.fillerParticleCount);
     }
+}
+
+// --- 雪花粒子系统 ---
+function createSnowSystem() {
+    const snowGeo = new THREE.BufferGeometry();
+    const positions = [];
+    const velocities = []; 
+    
+    for (let i = 0; i < CONFIG.snowCount; i++) {
+        // 修改: 增加深度范围，避免雪花太拥挤
+        positions.push(
+            (Math.random() - 0.5) * 200, 
+            Math.random() * 100, 
+            (Math.random() - 0.5) * 150 
+        );
+        velocities.push((Math.random() * 0.2) + 0.1); 
+    }
+    
+    snowGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    snowGeo.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 1));
+    
+    const snowMat = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.8,
+        map: createGlowTexture(0xffffff),
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false, 
+        blending: THREE.AdditiveBlending
+    });
+    
+    snowSystem = new THREE.Points(snowGeo, snowMat);
+    scene.add(snowSystem);
 }
 
 function addParticleToScene(mesh, index, total) {
@@ -446,7 +487,11 @@ function handlePhotoUpload(e) {
 
                 const oldParticle = allParticles[targetIndex];
                 const geometry = new THREE.BoxGeometry(3, 3, 0.1);
-                const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.5, metalness: 0.1 });
+                const material = new THREE.MeshStandardMaterial({ 
+                    map: texture, 
+                    roughness: 0.3, 
+                    metalness: 0.5 
+                });
                 const photoMesh = new THREE.Mesh(geometry, material);
                 
                 photoMesh.userData = { ...oldParticle.userData, isPhoto: true };
@@ -563,33 +608,62 @@ function animate() {
     requestAnimationFrame(animate);
     time += 0.01;
 
-    // 4. 树顶五角星与文字动画
     if (treeLight && starMesh) {
-        treeLight.intensity = 2.5 + Math.sin(time * 2.5) * 1;
-        // 修改 2: 旋转Y轴，平行于树的纵轴
+        treeLight.intensity = 10 + Math.sin(time * 3) * 5;
         starMesh.rotation.y += 0.03; 
     }
     
-    // 文字呼吸效果
     if (textMesh) {
         textMesh.material.emissiveIntensity = 0.5 + Math.sin(time * 3) * 0.3;
-        // 让文字微微上下浮动
         textMesh.position.y = (CONFIG.treeHeight / 2 + CONFIG.verticalOffset + 12) + Math.sin(time) * 0.5;
     }
 
+    // --- 雪花动画 ---
+    if (snowSystem) {
+        const positions = snowSystem.geometry.attributes.position.array;
+        const velocities = snowSystem.geometry.attributes.velocity.array;
+        
+        for (let i = 0; i < CONFIG.snowCount; i++) {
+            const idx = i * 3;
+            let py = positions[idx + 1];
+            const speed = velocities[i];
+            
+            py -= speed * 0.4; 
+
+            positions[idx] += Math.sin(time + py * 0.1) * 0.05;
+
+            // 雪花手势交互
+            if (handState === 'FIST') {
+                positions[idx] -= positions[idx] * 0.005;
+                positions[idx + 2] -= positions[idx + 2] * 0.005;
+            } else if (handState === 'OPEN') {
+                positions[idx] += positions[idx] * 0.005;
+                positions[idx + 2] += positions[idx + 2] * 0.005;
+            }
+
+            if (py < -20) {
+                py = 80;
+                positions[idx] = (Math.random() - 0.5) * 200;
+                positions[idx + 2] = (Math.random() - 0.5) * 150; // 重置时也应用新的深度范围
+            } else {
+                positions[idx+1] = py;
+            }
+        }
+        snowSystem.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // --- 主粒子动画 ---
     const targetPos = new THREE.Vector3();
 
     allParticles.forEach((p, i) => {
         if (p.userData.isPhoto && gsap.isTweening(p.position)) return;
 
-        // 填充粒子闪烁
         if (p.userData.isFiller) {
              const scale = p.userData.baseScale.x * (0.7 + Math.sin(time * p.userData.flashSpeed + i)*0.4);
              p.scale.set(scale, scale, scale);
         }
 
         if (handState === 'FIST') {
-            // --- 聚合模式 ---
             targetPos.copy(p.userData.treePos);
             const noise = 0.4;
             targetPos.x += (Math.random()-0.5)*noise;
@@ -603,13 +677,10 @@ function animate() {
             }
 
         } else if (handState === 'OPEN') {
-            // --- 修改 3: 扩散范围调整 ---
             const treeP = p.userData.treePos;
             const baseRadius = Math.sqrt(treeP.x*treeP.x + treeP.z*treeP.z);
             
-            // 原先: baseRadius * 1.5 + 60 + ...
-            // 修改后: baseRadius * 1.5 + 45 (稍微减小扩散距离)
-            const dynamicSpread = 45 + Math.sin(time * 0.4 + i * 0.02) * 20; 
+            const dynamicSpread = 40 + Math.sin(time * 0.4 + i * 0.02) * 20; 
             const currentRadius = baseRadius * 1.5 + dynamicSpread;
             
             const angle = Math.atan2(treeP.z, treeP.x) + time * 0.2 + p.userData.rotateOffset;
@@ -631,7 +702,6 @@ function animate() {
         }
     });
 
-    // 相机交互跟随
     if(handState !== 'PINCH') {
         const targetCamX = handData.x * -12;
         const targetCamY = (15 + CONFIG.verticalOffset * 0.4) + handData.y * -8;
