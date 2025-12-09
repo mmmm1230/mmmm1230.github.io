@@ -168,6 +168,13 @@ function initThree() {
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
     updateCameraPosition(); 
 
+    // [新增] 摄像机光源 (Headlight) - 制造反光亮晶晶效果
+    // 我们将灯光添加到 camera 对象上，这样灯光会永远跟随摄像机视角
+    const cameraLight = new THREE.PointLight(0xffffff, 0, 500);
+    cameraLight.position.set(0, 0, 0); 
+    camera.add(cameraLight);
+    scene.add(camera); // 必须将camera添加到场景中，子灯光才会生效
+
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -186,12 +193,12 @@ function initThree() {
     mainLight.castShadow = true;
     scene.add(mainLight);
 
-    const leftRimLight = new THREE.PointLight(0x4488ff, 300.0, 400); 
-    leftRimLight.position.set(-60, 30, -20);
+    const leftRimLight = new THREE.PointLight(0x4488ff, 6000.0, 400); 
+    leftRimLight.position.set(-60, 30, 90);
     scene.add(leftRimLight);
 
-    const rightRimLight = new THREE.PointLight(0xffaa44, 250.0, 400);
-    rightRimLight.position.set(60, 20, 20);
+    const rightRimLight = new THREE.PointLight(0xffaa44, 6000.0, 400);
+    rightRimLight.position.set(60, 30, 90);
     scene.add(rightRimLight);
 
     // 树顶星光
@@ -241,10 +248,10 @@ function loadChristmasText() {
         textGeo.translate(centerOffset, 0, 0);
 
         const textMat = new THREE.MeshStandardMaterial({ 
-            color: 0xff0000, 
+            color: 0xffd700, 
             roughness: 0.3,
-            metalness: 0.7,
-            emissive: 0xff0000, 
+            metalness: 3,
+            emissive: 0xffd700, 
             emissiveIntensity: 0.4
         });
 
@@ -275,7 +282,8 @@ function createStarShape(outerRadius, innerRadius, points) {
 function setupTreeTopLight() {
     const topY = CONFIG.treeHeight / 2 + 2 + CONFIG.verticalOffset;
     
-    treeLight = new THREE.PointLight(0xffdd88, 200, 200);
+    // [修改] 提高灯光强度 (200 -> 300)
+    treeLight = new THREE.PointLight(0xffdd88, 3000, 100);
     treeLight.position.set(0, topY, 0);
     scene.add(treeLight);
     
@@ -284,10 +292,11 @@ function setupTreeTopLight() {
         depth: 0.6, bevelEnabled: true, bevelThickness: 0.3, bevelSize: 0.3, bevelSegments: 3
     });
     
+    // [修改] 提高材质发光强度 (5.0 -> 8.0)，使其看起来像燃烧的灯丝
     const starMat = new THREE.MeshStandardMaterial({
         color: 0xffd700, 
         emissive: 0xffaa00, 
-        emissiveIntensity: 5.0, 
+        emissiveIntensity: 50.0, 
         roughness: 0.1,
         metalness: 1.0,  
         side: THREE.DoubleSide
@@ -295,6 +304,7 @@ function setupTreeTopLight() {
     starMesh = new THREE.Mesh(starGeo, starMat);
     
     starMesh.position.z = -0.3; 
+    // 将 StarMesh 作为 treeLight 的子对象，这样旋转 treeLight 时星星也会转
     treeLight.add(starMesh);
 
     const spriteMat = new THREE.SpriteMaterial({ 
@@ -302,7 +312,7 @@ function setupTreeTopLight() {
         color: 0xffdd88, transparent: true, blending: THREE.AdditiveBlending, opacity: 1.0
     });
     const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(20, 20, 1.0);
+    sprite.scale.set(25, 25, 1.0); // 稍微加大光晕
     treeLight.add(sprite);
 }
 
@@ -378,19 +388,19 @@ function createRichParticleSystem() {
             const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
             const mat = new THREE.MeshStandardMaterial({ 
                 color: color, 
-                roughness: 0.2, 
-                metalness: 0.9 
+                roughness: 0.1, // 降低粗糙度，增强反光
+                metalness: 1.0  // 提高金属度，增强反光
             });
             mesh = new THREE.Mesh(geo, mat);
         } else { // 圆球
             const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
             const mat = new THREE.MeshPhysicalMaterial({ 
                 color: color, 
-                roughness: 0.1, 
-                metalness: 0.7, 
+                roughness: 0.05, // 极光滑
+                metalness: 0.8,  // 高金属感
                 reflectivity: 1.0, 
                 clearcoat: 1.0,
-                clearcoatRoughness: 0.1
+                clearcoatRoughness: 0.05
             });
             mesh = new THREE.Mesh(mainGeoSphere, mat);
             const scale = 0.7 + Math.random() * 0.7;
@@ -486,8 +496,10 @@ function handlePhotoUpload(e) {
                 const geometry = new THREE.BoxGeometry(3, 3, 0.1);
                 const material = new THREE.MeshStandardMaterial({ 
                     map: texture, 
-                    roughness: 0.3, 
-                    metalness: 0.5 
+                    side: THREE.DoubleSide,
+                    color: 0x111111,
+                    transparent: true,  // [开启透明]
+                    opacity: 0.85
                 });
                 const photoMesh = new THREE.Mesh(geometry, material);
                 
@@ -549,7 +561,7 @@ function triggerPhotoInteraction() {
 
     activePhoto.rotation.set(effect.rot.x || 0, effect.rot.y || 0, effect.rot.z || 0);
     tl.to(activePhoto.rotation, { x: 0, y: 0, z: 0, duration: 1.5, ease: "power2.out" }, 0);
-    tl.to(activePhoto.scale, { x: 6, y: 6, z: 6, duration: 1.2 }, 0);
+    tl.to(activePhoto.scale, { x: 4, y: 4, z: 4, duration: 1.2 }, 0);
     if(glowMesh) tl.to(glowMesh.material, {opacity: 1, duration: 0.8}, 0);
 }
 
@@ -606,13 +618,16 @@ function animate() {
     time += 0.01;
 
     if (treeLight && starMesh) {
-        treeLight.intensity = 180 + Math.sin(time * 3) * 40;
+        // [修改] 让亮度保持在一个较高的基准线上波动 (250 + 50)
+        treeLight.intensity = 250 + Math.sin(time * 3) * 50;
+        
+        // [修改] 旋转 treeLight (它包含 starMesh), 所以光照和星星一起转
         treeLight.rotation.y += 0.03; 
     }
     
     if (textMesh) {
-        textMesh.material.emissiveIntensity = 0.5 + Math.sin(time * 3) * 0.3;
-        textMesh.position.y = (CONFIG.treeHeight / 2 + CONFIG.verticalOffset + 12) + Math.sin(time) * 0.5;
+        textMesh.material.emissiveIntensity = 35.0 + Math.sin(time * 3) * 0.8;
+        textMesh.position.y = (CONFIG.treeHeight / 2 + CONFIG.verticalOffset + 24) + Math.sin(time) * 0.5;
     }
 
     // --- 雪花动画 (修复版) ---
